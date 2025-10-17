@@ -2,12 +2,23 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Modal, Form, Button, Stack } from "react-bootstrap";
 import api from "../lib/api";
+import { toast } from 'react-hot-toast';
+import { IoMdArrowDropdown, IoMdArrowDropup  } from "react-icons/io";
+import { RiFolderAddFill } from "react-icons/ri";
+import { FaArrowRight, FaArrowLeft } from "react-icons/fa";
 
-export default function Sidebar({ selectedProject, onSelect }) {
+
+export default function Sidebar({  projects, selectedProject, onSelect, setProjects, onSetUser, user }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const [projects, setProjects] = useState([]);
   const [newProject, setNewProject] = useState({ name: "", deadline: "" });
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [showProject, setShowProject] = useState(false);
+  const [keywordSearchProject, setKeywordSearchProject] = useState("");
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showMiniSidebar,setShowMiniSidebar] = useState(true);
+  const [windowWidth, setWindowWidth] = useState(0);
   const router = useRouter();
 
   // 🔹 Ambil profil user login
@@ -16,24 +27,26 @@ export default function Sidebar({ selectedProject, onSelect }) {
       try {
         const res = await api.get("/custom-profile");
         setCurrentUser(res.data);
+        onSetUser(res.data);
+        // setCurrentUser(
+        //   {
+        //     "id": 4,
+        //     "name": "Winner",
+        //     "email": "winner@mail.com",
+        //     "email_verified_at": null,
+        //     "created_at": "2025-10-06T04:14:25.000000Z",
+        //     "updated_at": "2025-10-06T04:14:25.000000Z",
+        //     "pivot": {
+        //         "project_id": 1,
+        //         "user_id": 4
+        //     }
+        // }
+        // );
       } catch (err) {
         console.error("Gagal ambil profil:", err);
       }
     };
     fetchProfile();
-  }, []);
-
-  // 🔹 Ambil daftar project
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const res = await api.get("/projects");
-        setProjects(res.data);
-      } catch (err) {
-        console.error("Gagal ambil project:", err);
-      }
-    };
-    fetchProjects();
   }, []);
 
   // 🔹 Fungsi logout
@@ -52,149 +65,175 @@ export default function Sidebar({ selectedProject, onSelect }) {
   const handleAddProject = async (e) => {
     e.preventDefault();
     try {
-      await api.post("/projects", newProject);
-      alert("Project berhasil ditambahkan!");
+      const res = await api.post("/projects", newProject);
       setNewProject({ name: "", deadline: "" });
-
-      // ✅ Ambil ulang daftar project
-      const resProjects = await api.get("/projects");
-      setProjects(resProjects.data);
-
-      // ✅ Tutup modal Bootstrap
-      const { Modal } = await import("bootstrap");
-      const modalEl = document.getElementById("addProjectModal");
-      let modalInstance = Modal.getInstance(modalEl);
-      if (!modalInstance) modalInstance = new Modal(modalEl);
-      modalInstance.hide();
+      setProjects([...projects, res.data]);
+      setShowAddProjectModal(false);
+      toast.success("Project berhasil ditambahkan");
     } catch (err) {
       console.error("Gagal tambah project:", err);
-      alert("Gagal menambah project.");
+      toast.error("Gagal menambah project.");
     }
   };
 
+    // Pantau perubahan ukuran layar
+    useEffect(() => {
+      const handleResize = () => setWindowWidth(window.innerWidth);
+  
+      // Set ukuran awal
+      setWindowWidth(window.innerWidth);
+  
+      // Tambahkan event listener
+      window.addEventListener("resize", handleResize);
+  
+      // Hapus event listener saat komponen unmount
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+  
+    // Otomatis sembunyikan sidebar jika layar < 1000px
+    useEffect(() => {
+      if (windowWidth < 1000) {
+        setShowSidebar(false);
+        setShowMiniSidebar(true);
+      } else {
+        setShowSidebar(true);
+        setShowMiniSidebar(false);
+      }
+    }, [windowWidth]);
+
   // 🔹 Filter project: tampilkan project yang dibuat user / user ada di tim
-  const filteredProjects = (projects || []).filter(
+  const filteredProjects = (projects || [])
+  .filter(
     (p) =>
       p.created_by?.id === currentUser?.id ||
       p.users?.some((u) => u.id === currentUser?.id)
-  );
+  )
+  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
 
   return (
     <>
       {/* Sidebar */}
-      <div
-        className="bg-dark text-white position-fixed d-flex flex-column"
-        style={{
-          width: "240px",
-          height: "calc(100vh - 56px)", // tidak nabrak header
-          top: "56px",
-          left: 0,
-          zIndex: 3000,
-        }}
-      >
-        {/* Bagian atas bisa discroll */}
-        <div className="flex-grow-1 overflow-auto p-3">
-          <h4 className="mb-3">My List</h4>
+      <div className="d-flex">
+        <div
+          className={`bg-dark text-cyan custom-sidebar ${showSidebar ? "show" : ""}`}
+        >
 
           {/* Tombol buka modal */}
-          <div className="mb-3">
-            <button
-              className="btn btn-sm btn-success w-100"
-              data-bs-toggle="modal"
-              data-bs-target="#addProjectModal"
-            >
-              + Tambah List
-            </button>
+          <div className="p-3">
+            <h4 className="mb-3">My Project List</h4>
+            <div className="mb-3">
+              <button
+                className="btn btn-sm bg-cyan text-dark w-100"
+                onClick={() => setShowAddProjectModal(true)}
+              >
+                <RiFolderAddFill /> New Project
+              </button>
+            </div>
+            <Button variant="transparent" size="sm" className="w-100 text-cyan" onClick={() => setShowProject(!showProject)}>
+              Projects
+              {showProject ? <IoMdArrowDropup className="mx-2"/> : <IoMdArrowDropdown className="mx-2"/>}
+            </Button>
+            {showProject &&
+              <Form className="my-2">
+                <Form.Control size="sm" type="text" name="project-name" placeholder="Cari Project" value={keywordSearchProject} onChange={(e) => setKeywordSearchProject(e.target.value)}/>
+              </Form>
+            }
+
           </div>
 
-          {/* Daftar project */}
-          <ul className="list-unstyled mb-4 project-list">
-            {filteredProjects.length === 0 ? (
-              <li className="text-muted fst-italic">Belum ada project.</li>
-            ) : (
-              filteredProjects.map((project) => (
-                <li
-                  key={project.id}
-                  className={`p-2 mb-2 rounded ${
-                    selectedProject?.id === project.id
-                      ? "bg-primary"
-                      : "bg-secondary"
-                  }`}
-                  style={{ cursor: "pointer" }}
-                  onClick={() => onSelect(project)}
-                >
-                  <div className="fw-semibold">{project.name}</div>
+          {/* Bagian atas bisa discroll */}
+          <div className="flex-grow-1 overflow-auto sidebar-scrollbar p-3">
+            {/* Daftar project */}
+            <ul className="list-unstyled mb-4 project-list">
+              {filteredProjects.length === 0 ? (
+                <li className="text-muted fst-italic">Belum ada project.</li>
+              ) : (
+                showProject &&
+                <>
 
-                  {/* 🧑 Pembuat */}
-                  {project.created_by?.name && (
-                    <small className="text-light d-block">
-                      Oleh: {project.created_by.name}
-                    </small>
-                  )}
+                  {filteredProjects.map((project) => (
+                    keywordSearchProject && !project.name.toLowerCase().includes(keywordSearchProject.toLowerCase()) ? null :
+                    <li
+                      key={project.id}
+                      className={`p-2 mb-2 rounded ${
+                        selectedProject?.id === project.id
+                          ? "bg-cyan text-dark"
+                          : "bg-secondary"
+                      }`}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => onSelect(project)}
+                    >
+                      <div className="fw-semibold" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{project.name}</div>
 
-                  {/* 📅 Deadline */}
-                  {project.deadline && (
-                    <small className="text-light d-block">
-                      Deadline:{" "}
-                      {new Date(project.deadline).toLocaleDateString("id-ID", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </small>
-                  )}
+                      {/* 🧑 Pembuat */}
+                      {project.created_by?.name && (
+                        <small className={selectedProject?.id === project.id ? 'text-dark d-block' : 'text-light d-block'}>
+                          Oleh: {project.created_by.name}
+                        </small>
+                      )}
 
-                  {/* 👥 Tim */}
-                  {project.users?.length > 0 && (
-                    <small className="text-light d-block">
-                      Tim:{" "}
-                      {project.users
-                        .map((u) => u.name || u.username || `User ${u.id}`)
-                        .join(", ")}
-                    </small>
-                  )}
-                </li>
-              ))
-            )}
-          </ul>
+                      {/* 📅 Deadline */}
+                      {project.deadline && (
+                        <small className={selectedProject?.id === project.id ? 'text-dark d-block' : 'text-light d-block'}>
+                          Deadline:{" "}
+                          {new Date(project.deadline).toLocaleDateString("id-ID", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </small>
+                      )}
+
+                      {/* 👥 Tim */}
+                      {project.users?.length > 0 && (
+                        <small className={selectedProject?.id === project.id ? 'text-dark d-block' : 'text-light d-block'}>
+                          Tim:{" "}
+                          {project.users
+                            .map((u) => u.name || u.username || `User ${u.id}`)
+                            .join(", ")}
+                        </small>
+                      )}
+                    </li>
+                  ))}
+                </>
+              )}
+            </ul> 
+          </div>
+
+          {/* Tombol logout di bawah */}
+          <div
+            className="p-3"
+            style={{
+              flexShrink: 0,
+              backgroundColor: "#212529",
+            }}
+          >
+            <button className="btn btn-danger w-100" onClick={handleLogout}>
+              <i className="bi bi-box-arrow-right"></i> Logout
+            </button>
+          </div>
         </div>
-
-        {/* Tombol logout di bawah */}
-        <div
-          className="border-top p-3"
-          style={{
-            flexShrink: 0,
-            backgroundColor: "#212529",
-          }}
-        >
-          <button className="btn btn-danger w-100" onClick={handleLogout}>
-            <i className="bi bi-box-arrow-right"></i> Logout
-          </button>
+        
+        <div className={`mini-sidebar ${showMiniSidebar ? "" : "hide"} ${showSidebar ? "margined" : ""}`} onClick={() => setShowSidebar(!showSidebar)}>
+        <div className={`toggle-icon ${showSidebar ? "rotate" : ""}`}>
+          <FaArrowRight size={20} />
         </div>
       </div>
+      </div>
+
 
       {/* Modal Tambah Project */}
-      <div
-        className="modal fade"
-        id="addProjectModal"
-        tabIndex="-1"
-        aria-labelledby="addProjectModalLabel"
-        aria-hidden="true"
+      <Modal
+        show={showAddProjectModal}
+        onHide={() => setShowAddProjectModal(false)}
+        data-bs-theme="dark"
+        centered
       >
-        <div className="modal-dialog">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title" id="addProjectModalLabel">
-                Tambah Project Baru
-              </h5>
-              <button
-                type="button"
-                className="btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-              ></button>
-            </div>
-            <div className="modal-body">
+          <Modal.Header closeButton className="bg-dark">
+            <Modal.Title>Tambah Project</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="bg-dark text-white">
               <form onSubmit={handleAddProject}>
                 {/* Input Nama */}
                 <div className="mb-3">
@@ -227,15 +266,18 @@ export default function Sidebar({ selectedProject, onSelect }) {
                     required
                   />
                 </div>
+                <Stack direction="horizontal" gap={2}>
+                  <button type="submit" className="btn bg-cyan text-dark w-100">
+                    Simpan
+                  </button>
+                  <button type="button" onClick={() => setShowAddProjectModal(false)} className="btn bg-purple text-light w-100">
+                    Batal
+                  </button>
+                </Stack>
 
-                <button type="submit" className="btn btn-primary w-100">
-                  Simpan
-                </button>
               </form>
-            </div>
-          </div>
-        </div>
-      </div>
+          </Modal.Body>
+      </Modal>
     </>
   );
 }

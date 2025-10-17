@@ -4,10 +4,10 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function Header() {
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+    <nav className="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
       <div className="container">
         <Link href="/" className="navbar-brand">
-          GAP TODO LIST
+          <img src="/gajah.png" alt="Logo Gajah" className="d-inline-block align-top" width="auto" height="30" /> &nbsp; <h5 className="d-inline-block m-0">GAP <div className="d-inline-block h5 text-cyan">To Do</div> list</h5>
         </Link>
         <button
           className="navbar-toggler"

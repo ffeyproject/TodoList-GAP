@@ -3,9 +3,5 @@ export const metadata = {
 };
 
 export default function LoginLayout({ children }) {
-  return (
-    <html lang="en">
-      <body className="login-body">{children}</body>
-    </html>
-  );
+  return <div className="login-body">{children}</div>;
 }

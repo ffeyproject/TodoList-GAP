@@ -55,7 +55,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      <div className="login-card">
+      <div className="login-card" data-bs-theme="dark">
         {/* Header */}
         <div className={`login-card-header ${isRegister ? "register" : ""}`}>
           <h2 className="mb-1">
