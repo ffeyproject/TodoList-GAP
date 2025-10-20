@@ -1,35 +1,111 @@
-import toast from "react-hot-toast";
+"use client";
+import React, { useEffect, useRef } from "react";
+import { createRoot } from "react-dom/client";
 
-export function showConfirmToast(message, onConfirm) {
-  toast.custom(
-    (t) => (
-      <div
-        className="bg-dark text-white shadow p-4 rounded shadow-md flex flex-col items-center"
-        style={{ minWidth: "250px" }}
-      >
-        <p className="text-gray-800 mb-3">{message}</p>
-        <div className="d-flex flex-row gap-2 justify-content-end">
+/**
+ * ConfirmDialog - presentational + accessible dialog
+ * props:
+ * - message: string
+ * - onConfirm: () => void
+ * - onCancel: () => void
+ * - confirmText, cancelText (optional)
+ */
+function ConfirmDialog({ message, onConfirm, onCancel, confirmText = "Ya", cancelText = "Batal" }) {
+  const modalRef = useRef(null);
+  const confirmBtnRef = useRef(null);
+
+  useEffect(() => {
+    // fokus ke tombol konfirmasi saat muncul
+    confirmBtnRef.current?.focus();
+
+    const handleKey = (e) => {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Enter") onConfirm();
+    };
+
+    document.addEventListener("keydown", handleKey);
+    // disable scroll di belakang
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onConfirm, onCancel]);
+
+  // klik overlay -> batal
+  const onOverlayClick = (e) => {
+    if (e.target === modalRef.current) onCancel();
+  };
+
+  return (
+    <div
+      ref={modalRef}
+      className="confirm-portal-overlay"
+      onMouseDown={onOverlayClick}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Confirm dialog"
+    >
+      <div className="confirm-portal-card" role="document">
+        <p className="confirm-message">{message}</p>
+        <div className="confirm-actions">
           <button
-            onClick={() => {
-              toast.dismiss(t.id); // langsung tutup
-              onConfirm();
-            }}
-            className="btn bg-cyan text-dark"
+            ref={confirmBtnRef}
+            className="btn-confirm"
+            onClick={onConfirm}
+            type="button"
           >
-            Ya
+            {confirmText}
           </button>
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="btn bg-purple text-light"
-          >
-            Batal
+          <button className="btn-cancel" onClick={onCancel} type="button">
+            {cancelText}
           </button>
         </div>
       </div>
-    ),
-    {
-      duration: 0, // ❗️Tidak auto-dismiss
-      position: "top-center", // (opsional)
-    }
+
+    </div>
   );
 }
+
+/**
+ * showConfirm - programmatic API that returns Promise<boolean>
+ * usage:
+ *  showConfirm("Apakah yakin?").then(ok => { if(ok) doSomething() })
+ */
+export function showConfirm(message, options = {}) {
+  return new Promise((resolve) => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+
+    const root = createRoot(container);
+
+    const cleanup = () => {
+      // unmount and remove dom
+      root.unmount();
+      if (container.parentNode) container.parentNode.removeChild(container);
+    };
+
+    const handleConfirm = () => {
+      cleanup();
+      resolve(true);
+    };
+    const handleCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+
+    root.render(
+      <ConfirmDialog
+        message={message}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        confirmText={options.confirmText}
+        cancelText={options.cancelText}
+      />
+    );
+  });
+}
+
+export default ConfirmDialog;

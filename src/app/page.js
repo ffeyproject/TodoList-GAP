@@ -4,9 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import Sidebar from "../components/Sidebar";
-import { showConfirmToast } from "../components/ConfirmToast";
 import api from "../lib/api";
-// import { toast } from 'react-toastify';
 import { MdGroupAdd } from "react-icons/md";
 import { Stack, Button, Modal, ListGroup, Form, Card  } from "react-bootstrap";
 import { FaGear } from "react-icons/fa6";
@@ -14,8 +12,10 @@ import { MdDelete } from "react-icons/md";
 import { IoIosRemoveCircle } from "react-icons/io";
 import { BsPaperclip } from "react-icons/bs";
 import { FaFile } from "react-icons/fa";
-import { FaEllipsisV } from "react-icons/fa";
 import toast from "react-hot-toast";
+import { showConfirm } from "@/components/ConfirmToast";
+import { BsSendCheckFill } from "react-icons/bs";
+import { FaUserTimes } from "react-icons/fa";
 
 
 export default function Home() {
@@ -32,9 +32,10 @@ export default function Home() {
   const [showModalManageContributor, setShowModalManageContributor] = useState(false);
   const fileInputRef = useRef(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [emailsInput, setEmailsInput] = useState("");
 
 
-  const router = useRouter();
+  const router = useRouter(); 
 
   // cek login
   useEffect(() => {
@@ -291,39 +292,33 @@ export default function Home() {
           fileForm.append("files[]", file); // ← penting: gunakan "files[]"
         });
   
-        await api.post(`tasks/${selectedTask.id}/files`, fileForm, {
+        const fileRes = await api.post(`tasks/${selectedTask.id}/files`, fileForm, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
         });
+        //merge fileRes.data ke res.data
+        res.data.files = [...(res.data.files || []), ...fileRes.data.files];    
       }
-  
+
       // 3️⃣ Update state frontend
       setSelectedTask({
         ...selectedTask,
         comments: [...(selectedTask.comments || []), res.data],
       });
   
-      const updatedProjects = projects.map((proj) =>
-        proj.id === selectedProject.id
-          ? {
-              ...proj,
-              tasks: proj.tasks.map((t) =>
-                t.id === selectedTask.id
-                  ? {
-                      ...t,
-                      comments: [...(t.comments || []), res.data],
-                    }
-                  : t
-              ),
-            }
-          : proj
+      const updatedProject = projects.find((p) => p.id === selectedProject.id);
+      const updatedTask = updatedProject.tasks.find((t) => t.id === selectedTask.id);
+      updatedTask.comments = [...(updatedTask.comments || []), res.data];
+      const updatedProjects = projects.map((p) =>
+        p.id === selectedProject.id ? updatedProject : p
       );
   
       setProjects(updatedProjects);
       setSelectedProject(
         updatedProjects.find((p) => p.id === selectedProject.id)
       );
+      console.log("project has changed", projects);
   
       setComment("");
       setSelectedFiles([]);
@@ -395,7 +390,8 @@ export default function Home() {
   const handleDeleteTask = async (taskId) => {
     try {
       // memnuculkan konfirmasi dulu sebelum melakukan delete
-      showConfirmToast("Yakin untuk menghapus task ini?", () => {
+        const ok = await showConfirm("Apakah kamu yakin ingin menghapus Task ini?");
+        if (!ok) return;
         api.delete(`/tasks/${taskId}`);
         const updatedProjects = projects.map((proj) =>
           proj.id === selectedProject.id
@@ -410,7 +406,6 @@ export default function Home() {
         setSelectedProject(updatedProjects.find((p) => p.id === selectedProject.id));
         setSelectedTask(null);
         toast.success('Task berhasil dihapus!')
-      });
 
     } catch (err) {
       console.error("Gagal hapus task:", err);
@@ -435,8 +430,9 @@ export default function Home() {
   //handle untuk hapus project
   const handleDeleteProject = async (projectId) => {
     try {
-      //memunculkan konfirmasi dulu
-      showConfirmToast("Yakin untuk menghapus project ini?", () => {
+        //memunculkan konfirmasi dulu
+        const ok = await showConfirm("Apakah kamu yakin ingin menghapus project ini?");
+        if (!ok) return;
         api.delete(`/projects/${projectId}`);
         const updatedProjects = projects.filter((p) => p.id !== projectId);
         // update state project
@@ -444,7 +440,6 @@ export default function Home() {
         setSelectedProject(null);
         setSelectedTask(null);
         toast.success('Project berhasil dihapus!')
-      });
     } catch (err) {
       console.error("Gagal hapus project:", err);
     }
@@ -452,7 +447,8 @@ export default function Home() {
 
   // handle Remove Contributor
   const handleRemoveContributor = async (projectId, contributorId) => {
-    showConfirmToast("Yakin untuk menghapus kontributor ini?", () => {
+      const ok = await showConfirm("Apakah kamu yakin ingin menghapus kontributor ini?");
+      if (!ok) return;
       api.delete(`/projects/${projectId}/contributors/${contributorId}`);
       const updatedProjects = projects.map((p) =>
         p.id === projectId ? { ...p, users: p.users.filter((c) => c.id !== contributorId) } : p
@@ -460,7 +456,6 @@ export default function Home() {
       setProjects(updatedProjects);
       setSelectedProject(updatedProjects.find((p) => p.id === projectId));
       toast.success('Kontributor berhasil dihapus!')
-    })
   }
 
   //handle untuk memilih File
@@ -486,24 +481,64 @@ export default function Home() {
   //handle untuk delete comment
   const handleDeleteComment = async (commentId) => {
     try {
-      showConfirmToast("Yakin untuk menghapus komentar ini?", () => {
-        api.delete(`/comments/${commentId}`);
-        const updatedProjects = projects.map((p) => {
-          const updatedTasks = p.tasks.map((t) => {
-            const updatedComments = t.comments.filter((c) => c.id !== commentId);
-            return { ...t, comments: updatedComments };
-          });
-          return { ...p, tasks: updatedTasks };
-        });
-        setProjects(updatedProjects);
-        setSelectedProject(updatedProjects.find((p) => p.id === selectedProject.id));
-      });
+      const ok = await showConfirm("Apakah kamu yakin ingin menghapus comment ini?");
+      if (!ok) return;
+  
+      // Hapus dari server
+      await api.delete(`/comments/${commentId}`);
+  
+      // 1️⃣ Update selectedTask secara lokal
+      const updatedComments = selectedTask.comments.filter((c) => c.id !== commentId);
+      const updatedTask = { ...selectedTask, comments: updatedComments };
+      setSelectedTask(updatedTask);
+  
+      // 2️⃣ Update project dan task-nya langsung (tanpa map semua)
+      setProjects((prevProjects) =>
+        prevProjects.map((proj) => {
+          if (proj.id !== selectedProject.id) return proj; // biarkan project lain
+          return {
+            ...proj,
+            tasks: proj.tasks.map((t) =>
+              t.id === selectedTask.id ? updatedTask : t
+            ),
+          };
+        })
+      );
+  
+      // 3️⃣ Update selectedProject
+      setSelectedProject((prevProject) => ({
+        ...prevProject,
+        tasks: prevProject.tasks.map((t) =>
+          t.id === selectedTask.id ? updatedTask : t
+        ),
+      }));
+  
+      toast.success("Komentar berhasil dihapus!");
     } catch (err) {
       console.error("Gagal hapus komentar:", err);
-    }finally {
-      toast.success('Komentar berhasil dihapus!')
     }
-  }
+  };
+  
+  // handle add contributors
+  const handleAddContributors = (e) => {
+    e.preventDefault();
+
+    // validasi
+    if (!emailsInput.trim()) return;
+
+    // pisahkan berdasarkan koma
+    const emails = emailsInput
+      .split(",")
+      .map((email) => email.trim())
+      .filter((email) => email.length > 0);
+
+    // panggil fungsi addContributors
+    addContributors(selectedProject.id, emails);
+
+    // reset input
+    setEmailsInput("");
+    setShowContributorForm(false);
+  };
   
   // total komentar
   const totalComments =
@@ -560,39 +595,58 @@ export default function Home() {
                 </p>
 
                 {/* Input tambah kontributor */}
-                <Stack
-                  direction="horizontal"
-                  className="align-items-center"
-                  style={{ maxWidth: "455px" }}
-                >
-                  <div
-                    className={`contributor-input-container ${
-                      showContributorForm ? "show" : ""
-                    } mb-3`}
+                <Form onSubmit={handleAddContributors} className="mb-3 mt-2">
+                  <Stack
+                    direction="horizontal"
+                    className="align-items-center"
+                    style={{ maxWidth: "478px"}}
                   >
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Tambah Tim dengan Email (pisahkan dengan koma)"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          const emails = e.target.value
-                            .split(",")
-                            .map((email) => email.trim());
-                          addContributors(selectedProject.id, emails);
-                          e.target.value = "";
-                        }
-                      }}
-                    />
-                  </div>
-                  <Button
-                    className="mb-3 text-cyan bg-transparent p-0 d-flex align-items-center nowrap"
-                    onClick={() => setShowContributorForm(!showContributorForm)}
-                  >
-                    <MdGroupAdd size={24} className="me-2 text-cyan cursor-pointer" />
-                    {!showContributorForm && "Add Contributor"}
-                  </Button>
-                </Stack>
+                    {/* Input selalu dirender, hanya disembunyikan dengan animasi */}
+                    <div
+                      className={`contributor-input-container ${
+                        showContributorForm ? "show" : ""
+                      }`}
+                    >
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Tambah Tim dengan Email (pisahkan dengan koma)"
+                        value={emailsInput}
+                        onChange={(e) => setEmailsInput(e.target.value)}
+                        disabled={!showContributorForm} // agar tak bisa diketik saat disembunyikan
+                      />
+                    </div>
+
+                    <div className="d-flex align-items-center gap-2 px-2 m-0">
+                      <Button
+                        className="text-cyan bg-transparent p-0 d-flex align-items-center nowrap"
+                        type="button"
+                        onClick={() => setShowContributorForm(!showContributorForm)}
+                      >
+                        {showContributorForm ? (
+                          <FaUserTimes size={20} className="me-2 text-purple cursor-pointer" onClick={() => setEmailsInput("")} />
+                        ) : (
+                          <MdGroupAdd size={20} className="me-2 text-cyan cursor-pointer" />
+                        )}
+                        {!showContributorForm && "Add Contributor"}
+                      </Button>
+
+                      <Button
+                        className={`text-cyan bg-transparent p-0 d-flex align-items-center nowrap transition-all`}
+                        type="submit"
+                        style={{
+                          opacity: showContributorForm ? 1 : 0,
+                          visibility: showContributorForm ? "visible" : "hidden",
+                          transition: "opacity 0.3s ease",
+                        }}
+                      >
+                        <BsSendCheckFill size={20} />
+                      </Button>
+                    </div>
+                  </Stack>
+                </Form>
+
+
 
                 {/* Input tambah task */}
                 <div className="input-group mb-3" style={{ maxWidth: "400px" }}>
@@ -778,20 +832,17 @@ export default function Home() {
                         </li>
                         <li className="list-group-item">
                           <p>{c.body}</p>
-                          {c.files?.length > 0 && (
                             <ListGroup variant="flush">
-                                {c.files.map((f, i) => (
-                                  <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-decoration-none">
-                                    <ListGroup.Item className="d-flex align-items-center justify-content-between bg-secondary" key={i} >
+                                {c.files?.map((f, i) => (
+                                    <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+                                    <ListGroup.Item className="d-flex align-items-center justify-content-between bg-secondary">
                                       <div className="d-flex align-items-center gap-2">
-                                        <FaFile size={35}/> {f.file_name} 
+                                        <FaFile size={35}/> {f.name || f.file_name} 
                                       </div>
                                     </ListGroup.Item>
-                                  </a>
-
+                                    </a>
                                 ))}
                             </ListGroup>
-                          )}
                         </li>
                     </ul>
                   ))}
@@ -912,8 +963,12 @@ export default function Home() {
               <div>
                 <strong>{u.email}</strong>
               </div>
+              {user.id === u.id && <div className="text-muted">Creator</div>}
               <div className="d-flex text-danger" style={{ cursor: "pointer" }} onClick={() => handleRemoveContributor(selectedProject.id, u.id)}>
-                <IoIosRemoveCircle size={24}/>Remove
+                {user.id === u.id ? null : 
+                <span className="text-danger" style={{ cursor: "pointer" }} onClick={() => handleRemoveContributor(selectedProject.id, u.id)}>
+                  <IoIosRemoveCircle size={24}/> Remove
+                </span>}
               </div>
             </ListGroup.Item>
           ))}

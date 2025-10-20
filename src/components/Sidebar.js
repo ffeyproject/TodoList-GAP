@@ -8,6 +8,8 @@ import { toast } from 'react-hot-toast';
 import { IoMdArrowDropdown, IoMdArrowDropup  } from "react-icons/io";
 import { RiFolderAddFill } from "react-icons/ri";
 import { FaArrowRight, FaArrowLeft } from "react-icons/fa";
+import { MdDoNotDisturbAlt } from "react-icons/md";
+
 
 
 export default function Sidebar({  projects, selectedProject, onSelect, setProjects, onSetUser, user }) {
@@ -147,7 +149,7 @@ export default function Sidebar({  projects, selectedProject, onSelect, setProje
             {/* Daftar project */}
             <ul className="list-unstyled mb-4 project-list">
               {filteredProjects.length === 0 ? (
-                <li className="text-muted fst-italic">Belum ada project.</li>
+                <li className="text-secondary fst-italic text-center"><MdDoNotDisturbAlt/> Belum ada project.</li>
               ) : (
                 showProject &&
                 <>
@@ -230,7 +232,7 @@ export default function Sidebar({  projects, selectedProject, onSelect, setProje
         data-bs-theme="dark"
         centered
       >
-          <Modal.Header closeButton className="bg-dark">
+          <Modal.Header closeButton>
             <Modal.Title>Tambah Project</Modal.Title>
           </Modal.Header>
           <Modal.Body className="bg-dark text-white">

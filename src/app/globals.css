@@ -154,25 +154,31 @@ select.form-select::placeholder {
   background-color: #6f42c1 !important;
 }
 
+.text-purple{
+  color: #6f42c1 !important;
+}
 
 .contributor-input-container {
   width: 0;
-  opacity: 0; 
-  overflow: hidden; 
+  opacity: 0;
+  overflow: hidden;
   transition: width 0.4s ease-out, opacity 0.4s ease-out;
-  margin-right: 0 !important; 
-  display: flex; 
+  margin-right: 0 !important;
+  display: flex;
+  align-items: center;
 }
 
-/* Keadaan akhir (Shown) */
 .contributor-input-container.show {
-  width: 100%; 
-  opacity: 1; 
-  margin-right: var(--bs-gutter-x, 0.5rem) !important; 
+  width: 100%;
+  opacity: 1;
+  margin-right: var(--bs-gutter-x, 0.5rem) !important;
 }
+
 .contributor-input-container input {
-  min-width: 150px; 
+  min-width: 150px;
+  width: 100%;
 }
+
 
 .cursor-pointer{
   cursor: pointer;
@@ -268,4 +274,60 @@ button{
 /* Saat sidebar sedang tampil, ikon berputar ke kanan */
 .toggle-icon.rotate {
   transform: rotate(-540deg);
+}
+
+
+.confirm-portal-overlay{
+  position: fixed;
+  inset: 0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(0,0,0,0.45);
+  z-index: 9999;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+}
+.confirm-portal-card{
+  width: 100%;
+  max-width: 420px;
+  background: #121517;
+  border: 1px solid #00faaf;
+  color: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 10px 30px #000000;
+  transform: translateY(-8px);
+  animation: slideUp .18s ease-out forwards;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px) scale(.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.confirm-message{
+  margin: 0 0 16px 0;
+  font-size: 15px;
+  color: #e5e7eb;
+  text-align: center;
+}
+.confirm-actions{
+  display:flex;
+  gap: 8px;
+  justify-content:flex-end;
+}
+.btn-confirm{
+  background: #00faaf;
+  border: none;
+  color: #0f172a;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-cancel{
+  background: #6f42c1;
+  border: none;
+  color: #e5e7eb;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
 }
